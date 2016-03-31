@@ -10,6 +10,7 @@
 #include <grp.h>
 #include <time.h>
 #include <tgmath.h>
+#include <math.h>
 #include "main.h"
 
 
