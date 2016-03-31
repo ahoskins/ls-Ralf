@@ -149,7 +149,7 @@ void displayDir(char* dirname, size_t endOfBaseDirIndex) {
 			largestSize = (int) buff.st_size;
 		}
 	}
-	printf("Total: %d\n", totalBlocks);
+	printf("Total: %d\n", totalBlocks / 2);
 	rewinddir(pDir);
 
 	// print file info for all in directory
