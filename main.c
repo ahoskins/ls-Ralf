@@ -86,7 +86,7 @@ void displayFileInfo(char* filename, struct dirent* pDirent, int linkCountSize, 
 		perror("failed to get group");
 	}
 	printf("%s", gw->gr_name);
-	free(gw);
+	free(gw); // note: this leaks, but I think it's a library bug
 	printf(" ");
 
 	// size
@@ -181,6 +181,4 @@ void displayDir(char* dirname, size_t endOfBaseDirIndex) {
 	}
 
 	closedir(pDir);
-	free(pDir);
-	free(pDirent);
 }
