@@ -80,7 +80,7 @@ void displayFileInfo(char* filename, struct dirent* pDirent, int linkCountSize, 
 
 	// group
 	struct group *gw;
-	if ((gw = getgrgid(buff.st_uid)) == NULL) {
+	if ((gw = getgrgid(buff.st_gid)) == NULL) {
 		perror("failed to get group");
 	}
 	printf("%s", gw->gr_name);
