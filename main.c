@@ -77,6 +77,7 @@ void displayFileInfo(char* filename, struct dirent* pDirent, int linkCountSize, 
 		perror("failed to get user");
 	}
 	printf("%s", pw->pw_name);
+	free(pw);
 	printf(" ");
 
 	// group
@@ -85,6 +86,7 @@ void displayFileInfo(char* filename, struct dirent* pDirent, int linkCountSize, 
 		perror("failed to get group");
 	}
 	printf("%s", gw->gr_name);
+	free(gw);
 	printf(" ");
 
 	// size
@@ -179,4 +181,6 @@ void displayDir(char* dirname, size_t endOfBaseDirIndex) {
 	}
 
 	closedir(pDir);
+	free(pDir);
+	free(pDirent);
 }
