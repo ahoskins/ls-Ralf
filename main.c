@@ -1,8 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/dirent.h>
 #include <dirent.h>
+#include <sys/types.h>
+#include <sys/dir.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <pwd.h>
