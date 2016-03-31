@@ -105,6 +105,8 @@ void displayFileInfo(char* filename, struct dirent* pDirent, int linkCountSize, 
 		printf("%s -> %s\n", pDirent->d_name, linkname);
 	} else if (pDirent->d_type == DT_DIR) {
 		printf("%s/\n", pDirent->d_name);
+	} else if (S_IEXEC & buff.st_mode) {
+		printf("%s*\n", pDirent->d_name);
 	} else {
 		printf("%s\n", pDirent->d_name);
 	}
