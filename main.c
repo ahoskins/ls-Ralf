@@ -8,18 +8,18 @@
 #include <pwd.h>
 #include <grp.h>
 #include <time.h>
+#include <tgmath.h>
 #include "main.h"
 
-size_t endOfBaseDir;
 
 int main(int argc, char** argv) {
 	// set the printf buffer so it works
 	setvbuf (stdout, NULL, _IONBF, 0);
 
+	// start at the current working directory
 	char cwd[1024];
 	if (getcwd(cwd, sizeof(cwd)) != NULL) {
-		endOfBaseDir = strlen(cwd);
-		displayDir(cwd);
+		displayDir(cwd, strlen(cwd));
 	} else {
 		perror("cwd error");
 	}
@@ -27,23 +27,21 @@ int main(int argc, char** argv) {
 	return 0;
 }
 
+/** @brief displays file info for a given filename with proper spacing
+ *  @param filename the full path to the file
+ *  @param pDirent the dirent structure for the file
+ *  @param linkCountSize the number of characters wide to print link count
+ *  @param byteSize the number of characters wide to print file size
+ *  @return void
+ * */
+void displayFileInfo(char* filename, struct dirent* pDirent, int linkCountSize, int byteSize) {
 
-// Useful system calls:
-// stat, lstat, getpwuid, getgrgid, readlink, strftime,
-// fprintf and perror.
-void displayFileInfo(char* filename, struct dirent* pDirent) {
-	// readlink is for getting the symbolic link
+	// get the stats
 	struct stat buff;
 	if (lstat(filename, &buff) < 0) {
 		perror("error in stat");
 		return;
 	}
-	mode_t mode_t1 = buff.st_mode; // permission?
-	nlink_t nlink_t1 = buff.st_nlink; // number links
-	uid_t uid_t1 = buff.st_uid; // user
-	gid_t gid_t1 = buff.st_gid; // group
-	off_t off_t1 = buff.st_size; // bytes size
-	time_t time_t1 = buff.st_mtime; // time last modified
 
 	// type
 	if (pDirent->d_type == DT_DIR) {
@@ -55,7 +53,6 @@ void displayFileInfo(char* filename, struct dirent* pDirent) {
 	}
 
 	// permissions
-	printf((S_ISDIR(buff.st_mode)) ? "d" : "-");
 	printf((buff.st_mode & S_IRUSR) ? "r" : "-");
 	printf((buff.st_mode & S_IWUSR) ? "w" : "-");
 	printf((buff.st_mode & S_IXUSR) ? "x" : "-");
@@ -65,58 +62,56 @@ void displayFileInfo(char* filename, struct dirent* pDirent) {
 	printf((buff.st_mode & S_IROTH) ? "r" : "-");
 	printf((buff.st_mode & S_IWOTH) ? "w" : "-");
 	printf((buff.st_mode & S_IXOTH) ? "x" : "-");
-
-	// spacing
 	printf(" ");
 
 	// links
-	printf("%d", (int) nlink_t1);
-
-	// spacing
+	printf("%*d", linkCountSize, (int) buff.st_nlink);
 	printf(" ");
 
 	// user
 	struct passwd *pw;
-	if ((pw = getpwuid(uid_t1)) == NULL) {
+	if ((pw = getpwuid(buff.st_uid)) == NULL) {
 		perror("failed to get user");
 	}
 	printf("%s", pw->pw_name);
-
-	// spacing
 	printf(" ");
 
 	// group
 	struct group *gw;
-	if ((gw = getgrgid(uid_t1)) == NULL) {
+	if ((gw = getgrgid(buff.st_uid)) == NULL) {
 		perror("failed to get group");
 	}
 	printf("%s", gw->gr_name);
-
-	// spacing
 	printf(" ");
 
 	// size
-	printf("%d", (int) off_t1);
-
-	// spacing
+	printf("%*d", byteSize, (int) buff.st_size);
 	printf(" ");
 
 	// time last modified
 	char time[20];
-	strftime(time, 20, "%d %b %H:%M", localtime(&time_t1));
+	strftime(time, 20, "%d %b %H:%M", localtime(&(buff.st_mtime)));
 	printf("%s", time);
-
-	// spacing
 	printf(" ");
 
-	// name
-	printf("%s\n", pDirent->d_name);
+	// name (and maybe link)
+	if (pDirent->d_type == DT_LNK) {
+		char linkname[1024];
+		readlink(filename, linkname, 1014);
+		linkname[1023] = '\0';
+		printf("%s -> %s\n", pDirent->d_name, linkname);
+	} else {
+		printf("%s\n", pDirent->d_name);
+	}
 
 }
 
-// Useful system calls:
-// chdir, opendir, closedir, readdir, rewinddir, and those from displayFileInfo.
-void displayDir(char* dirname) {
+/**
+ * @brief recursively walk directories calling displayFileInfo on all encountered files and adding extra formatting
+ * @param dirname full directory path to start from
+ * @return void
+ * */
+void displayDir(char* dirname, size_t endOfBaseDirIndex) {
 	DIR* pDir;
 	struct dirent* pDirent;
 
@@ -125,7 +120,10 @@ void displayDir(char* dirname) {
 		perror("open dir error");
 	}
 
-	int total = 0;
+	// find overall stats for spacing purposes and find total block size
+	int totalBlocks = 0;
+	int largestLink = 0;
+	int largestSize = 0;
 	while ((pDirent = readdir(pDir)) != NULL) {
 		struct stat buff;
 		char nextName[sizeof(dirname) + sizeof(pDirent->d_name)] = "";
@@ -137,23 +135,39 @@ void displayDir(char* dirname) {
 			perror("error in stat");
 			return;
 		}
-		total += buff.st_blocks;
+
+		totalBlocks += buff.st_blocks;
+		if (buff.st_nlink > largestLink) {
+			largestLink = buff.st_nlink;
+		}
+		if (buff.st_size > largestSize) {
+			largestSize = (int) buff.st_size;
+		}
 	}
-
-	printf("Total: %d\n", total);
-
+	printf("Total: %d\n", totalBlocks);
 	rewinddir(pDir);
+
+	// print file info for all in directory
 	while ((pDirent = readdir(pDir)) != NULL) {
 		char nextName[sizeof(dirname) + sizeof(pDirent->d_name)] = "";
 		strcat(nextName, dirname);
 		strcat(nextName, "/");
 		strcat(nextName, pDirent->d_name);
 
-		displayFileInfo(nextName, pDirent);
+		displayFileInfo(nextName, pDirent, (int) floor(log10(largestLink)) + 1, (int) floor(log10(largestSize)) + 1);
+	}
+	rewinddir(pDir);
+
+	// if directory, recursively go into it
+	while ((pDirent = readdir(pDir)) != NULL) {
+		char nextName[sizeof(dirname) + sizeof(pDirent->d_name)] = "";
+		strcat(nextName, dirname);
+		strcat(nextName, "/");
+		strcat(nextName, pDirent->d_name);
 
 		if (pDirent->d_type == DT_DIR && (strcmp(pDirent->d_name, ".") != 0) && (strcmp(pDirent->d_name, "..") != 0)) {
-			printf("\n.%s:\n", nextName + endOfBaseDir);
-			displayDir(nextName);
+			printf("\n.%s:\n", nextName + endOfBaseDirIndex);
+			displayDir(nextName, endOfBaseDirIndex);
 		}
 	}
 
