@@ -64,6 +64,7 @@ void displayFileInfo(char* filename, struct dirent* pDirent, int linkCountSize, 
 	printf((buff.st_mode & S_IROTH) ? "r" : "-");
 	printf((buff.st_mode & S_IWOTH) ? "w" : "-");
 	printf((buff.st_mode & S_IXOTH) ? "x" : "-");
+	printf(pDirent->d_type == DT_LNK ? " " : "+");
 	printf(" ");
 
 	// links
@@ -102,6 +103,8 @@ void displayFileInfo(char* filename, struct dirent* pDirent, int linkCountSize, 
 		readlink(filename, linkname, 1014);
 		linkname[1023] = '\0';
 		printf("%s -> %s\n", pDirent->d_name, linkname);
+	} else if (pDirent->d_type == DT_DIR) {
+		printf("%s/\n", pDirent->d_name);
 	} else {
 		printf("%s\n", pDirent->d_name);
 	}
