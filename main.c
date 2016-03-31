@@ -10,16 +10,15 @@
 #include <time.h>
 #include "main.h"
 
-char recursiveDirName[1024] = ".";
+size_t endOfBaseDir;
 
 int main(int argc, char** argv) {
 	// set the printf buffer so it works
 	setvbuf (stdout, NULL, _IONBF, 0);
 
-//	displayDir(argv[1]);
-
 	char cwd[1024];
 	if (getcwd(cwd, sizeof(cwd)) != NULL) {
+		endOfBaseDir = strlen(cwd);
 		displayDir(cwd);
 	} else {
 		perror("cwd error");
@@ -126,6 +125,24 @@ void displayDir(char* dirname) {
 		perror("open dir error");
 	}
 
+	int total = 0;
+	while ((pDirent = readdir(pDir)) != NULL) {
+		struct stat buff;
+		char nextName[sizeof(dirname) + sizeof(pDirent->d_name)] = "";
+		strcat(nextName, dirname);
+		strcat(nextName, "/");
+		strcat(nextName, pDirent->d_name);
+
+		if (lstat(nextName, &buff) < 0) {
+			perror("error in stat");
+			return;
+		}
+		total += buff.st_blocks;
+	}
+
+	printf("Total: %d\n", total);
+
+	rewinddir(pDir);
 	while ((pDirent = readdir(pDir)) != NULL) {
 		char nextName[sizeof(dirname) + sizeof(pDirent->d_name)] = "";
 		strcat(nextName, dirname);
@@ -135,9 +152,7 @@ void displayDir(char* dirname) {
 		displayFileInfo(nextName, pDirent);
 
 		if (pDirent->d_type == DT_DIR && (strcmp(pDirent->d_name, ".") != 0) && (strcmp(pDirent->d_name, "..") != 0)) {
-			strcat(recursiveDirName, "/");
-			strcat(recursiveDirName, pDirent->d_name);
-			printf("\n%s:\n", recursiveDirName);
+			printf("\n.%s:\n", nextName + endOfBaseDir);
 			displayDir(nextName);
 		}
 	}
